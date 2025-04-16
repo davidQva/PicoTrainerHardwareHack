@@ -41,9 +41,9 @@ pico_set_program_name(steppermotor "steppermotor")
 pico_set_program_version(steppermotor "0.1")
 
 # Generate PIO header
-pico_generate_pio_header(steppermotor ${CMAKE_CURRENT_LIST_DIR}/blink.pio)
+#pico_generate_pio_header(steppermotor ${CMAKE_CURRENT_LIST_DIR}/blink.pio)
 # Modify the below lines to enable/disable output over UART/USB
-pico_enable_stdio_uart(steppermotor 0)
+pico_enable_stdio_uart(steppermotor 1)
 pico_enable_stdio_usb(steppermotor 0)
 
 # Add the standard library to the build
@@ -58,7 +58,7 @@ target_include_directories(steppermotor PRIVATE
 # Add any user requested libraries
 target_link_libraries(steppermotor 
         hardware_pio
-        
+        hardware_timer           
         )
 
 pico_add_extra_outputs(steppermotor)
