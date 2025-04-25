@@ -35,7 +35,7 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(steppermotor steppermotor.c )
+add_executable(steppermotor steppermotor.c tcp_client2.c)
 
 pico_set_program_name(steppermotor "steppermotor")
 pico_set_program_version(steppermotor "0.1")
@@ -48,7 +48,7 @@ pico_enable_stdio_usb(steppermotor 0)
 
 # Add the standard library to the build
 target_link_libraries(steppermotor
-        pico_stdlib)
+        pico_stdlib pico_multicore)
 
 # Add the standard include files to the build
 target_include_directories(steppermotor PRIVATE
@@ -58,8 +58,8 @@ target_include_directories(steppermotor PRIVATE
 # Add any user requested libraries
 target_link_libraries(steppermotor 
         hardware_pio
-        hardware_timer           
+        hardware_timer
+        pico_cyw43_arch_lwip_threadsafe_background           
         )
 
 pico_add_extra_outputs(steppermotor)
-

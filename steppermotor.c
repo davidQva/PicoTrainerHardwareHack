@@ -1,6 +1,12 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/timer.h"
+#include "ssid.h"
+#include "tcp_client2.h"
+#include "hardware/watchdog.h"
+#include <stdbool.h>
+#include "pico/cyw43_arch.h"
+#include "pico/multicore.h"
 
 
 // Definiera vilka pinnar vi använder
@@ -18,6 +24,13 @@
 // Hastighet (ju högre delay, desto långsammare rörelse)
 #define STEP_DELAY_US 1700  // 1000 mikrosekunder = 1ms mellan steg
 
+#define SERVER_IP "192.168.68.106"
+#define SERVER_PORT 9988
+
+volatile bool motor_fram = false;
+volatile bool motor_bak = false;
+
+
 void step_motor(bool direction) {
     // Sätt riktning
         gpio_put(DIR_PIN, direction);     
@@ -27,6 +40,18 @@ void step_motor(bool direction) {
         gpio_put(STEP_PIN, 0);
         sleep_us(STEP_DELAY_US);
     
+}
+
+void motor_loop() {
+    while (true) {
+        if (motor_fram && !motor_bak) {
+            step_motor(true);  // fram
+        } else if (motor_bak && !motor_fram) {
+            step_motor(false); // bak
+        } else {
+            sleep_ms(10); // Stillestånd
+        }
+    }
 }
 
 void light_led() {
@@ -71,11 +96,38 @@ void cleanup_old_timestamps(uint64_t current_time_ms) {
     rotation_count = new_count;
 }
 
+bool wifi_connect(const char* ssid, const char* password) {
+    if (cyw43_arch_init_with_country(CYW43_COUNTRY_SWEDEN)) {
+        return false;
+    }
+
+    cyw43_arch_enable_sta_mode();
+
+    if (cyw43_arch_wifi_connect_timeout_ms(ssid, password, CYW43_AUTH_WPA2_AES_PSK, 10000)) {
+        return false;
+    }
+
+    return true;
+}
+
 int main() { 
 
-    stdio_init_all();
+    stdio_init_all();  
     
-    
+    if (!wifi_connect(WIFI_SSID, WIFI_PASSWORD)) {
+        printf("Kunde inte ansluta till WiFi\n");
+        printf("Startar om systemet...\n");
+        cyw43_arch_deinit();
+        watchdog_reboot(0, 0, 0);
+        return 1;
+    }
+
+    udp_client_init();
+
+    if (!udp_client_connect(SERVER_IP, SERVER_PORT)) {
+        printf("Kunde inte initiera UDP-klient\n");
+        return 1;
+    }    
 
     //Steppermotor driver 
     gpio_init(STEP_PIN);
@@ -181,7 +233,10 @@ int main() {
                        WINDOW_SIZE_MS / 1000.0);
             }
         }
-    
+
+        multicore_launch_core1(motor_loop);
+
+        //udp_client_loop();
     }
 }
 
