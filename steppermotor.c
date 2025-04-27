@@ -29,37 +29,6 @@
 
 volatile bool motor_fram = false;
 volatile bool motor_bak = false;
-
-
-void step_motor(bool direction) {
-    // Sätt riktning
-        gpio_put(DIR_PIN, direction);     
-        
-        gpio_put(STEP_PIN, 1);
-        sleep_us(STEP_DELAY_US);
-        gpio_put(STEP_PIN, 0);
-        sleep_us(STEP_DELAY_US);
-    
-}
-
-void motor_loop() {
-    while (true) {
-        if (motor_fram && !motor_bak) {
-            step_motor(true);  // fram
-        } else if (motor_bak && !motor_fram) {
-            step_motor(false); // bak
-        } else {
-            sleep_ms(10); // Stillestånd
-        }
-    }
-}
-
-void light_led() {
-    gpio_put(LED, 1); // Tänd LED
-    //sleep_ms(1000); // Vänta 1 sekund
-    gpio_put(LED, 0); // Släck LED
-}
-
 // Define the window size for RPM calculation (in milliseconds)
 const uint64_t WINDOW_SIZE_MS = 5000;
 
@@ -75,14 +44,16 @@ int rotation_count = 0;
 volatile bool rotation_detected = false;
 volatile uint64_t last_interrupt_time = 0;
 
-// Interrupt handler for rotation sensor
-void sensor_interrupt_handler(uint gpio, uint32_t events) {
-    uint64_t current_time = time_us_64();
 
-    if (current_time - last_interrupt_time > DEBOUNCE_TIME_US) {
-        rotation_detected = true;
-        last_interrupt_time = current_time;
-    }
+void step_motor(bool direction) {
+    // Sätt riktning
+        gpio_put(DIR_PIN, direction);     
+        
+        gpio_put(STEP_PIN, 1);
+        sleep_us(STEP_DELAY_US);
+        gpio_put(STEP_PIN, 0);
+        sleep_us(STEP_DELAY_US);
+    
 }
 
 // Shift timestamps left to remove old entries
@@ -95,6 +66,73 @@ void cleanup_old_timestamps(uint64_t current_time_ms) {
     }
     rotation_count = new_count;
 }
+
+void motor_loop() {
+    while (true) {
+        if (motor_fram && !motor_bak) {
+            step_motor(true);  // fram
+        } else if (motor_bak && !motor_fram && gpio_get(SWITCH_PIN)) {
+            step_motor(false); // bak
+        } else {
+            sleep_ms(10); // Stillestånd
+        }
+
+
+        if (rotation_detected) {
+            rotation_detected = false;
+    
+            uint64_t current_time_ms = time_us_64() / 1000;
+    
+            // Save the timestamp of the rotation event if we have space
+            if (rotation_count < MAX_ROTATIONS) {
+                rotation_timestamps[rotation_count++] = current_time_ms;
+            }
+    
+            // Remove old timestamps that are outside the window
+            cleanup_old_timestamps(current_time_ms);
+    
+            // Calculate RPM if we have enough rotations
+            if (rotation_count > 1) {
+                double window_minutes = WINDOW_SIZE_MS / 60000.0;
+                double rpm = rotation_count / window_minutes;
+    
+                printf("Current RPM: %.2f (based on %d pulses in %.2f seconds)\n",
+                       rpm / 2,
+                       rotation_count,
+                       WINDOW_SIZE_MS / 1000.0);
+
+                char message[64];
+                snprintf(message, sizeof(message), "RPM: %.2f", rpm / 2);
+                send_message(message);
+            }
+        }
+
+
+
+    }   
+
+
+}
+
+void light_led() {
+    gpio_put(LED, 1); // Tänd LED
+    //sleep_ms(1000); // Vänta 1 sekund
+    gpio_put(LED, 0); // Släck LED
+}
+
+
+
+// Interrupt handler for rotation sensor
+void sensor_interrupt_handler(uint gpio, uint32_t events) {
+    uint64_t current_time = time_us_64();
+
+    if (current_time - last_interrupt_time > DEBOUNCE_TIME_US) {
+        rotation_detected = true;
+        last_interrupt_time = current_time;
+    }
+}
+
+
 
 bool wifi_connect(const char* ssid, const char* password) {
     if (cyw43_arch_init_with_country(CYW43_COUNTRY_SWEDEN)) {
@@ -167,6 +205,8 @@ int main() {
 
     short init = 0;
 
+    multicore_launch_core1(motor_loop);
+
     while (true) { 
              
        if (init == 0) {
@@ -209,32 +249,8 @@ int main() {
         //}        
 
         // 
-        if (rotation_detected) {
-            rotation_detected = false;
-
-            uint64_t current_time_ms = time_us_64() / 1000;
-
-            // Save the timestamp of the rotation event if we have space
-            if (rotation_count < MAX_ROTATIONS) {
-                rotation_timestamps[rotation_count++] = current_time_ms;
-            }
-
-            // Remove old timestamps that are outside the window
-            cleanup_old_timestamps(current_time_ms);
-
-            // Calculate RPM if we have enough rotations
-            if (rotation_count > 1) {
-                double window_minutes = WINDOW_SIZE_MS / 60000.0;
-                double rpm = rotation_count / window_minutes;
-
-                printf("Current RPM: %.2f (based on %d pulses in %.2f seconds)\n",
-                       rpm/2,
-                       rotation_count,
-                       WINDOW_SIZE_MS / 1000.0);
-            }
-        }
-
-        multicore_launch_core1(motor_loop);
+        
+       
 
         //udp_client_loop();
     }

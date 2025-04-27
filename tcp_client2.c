@@ -18,11 +18,11 @@ static void udp_recv_callback(void *arg, struct udp_pcb *pcb, struct pbuf *p,
     const ip_addr_t *addr, u16_t port) {
 if (!p) return;
 
-absolute_time_t start = get_absolute_time();
+//absolute_time_t start = get_absolute_time();
 
 char buffer[64] = {0};
 memcpy(buffer, p->payload, p->len < 63 ? p->len : 63);
-printf("Mottaget: %s\n", buffer);
+//printf("Mottaget: %s\n", buffer);
 
 
 
@@ -54,14 +54,14 @@ printf("⚠️ Båda knappar nedtryckta – stopp för säkerhet\n");
 // gpio_put(MOTOR_PIN_BAK, false);
 }
 */
-absolute_time_t stop = get_absolute_time();
-printf("⚡️ Tid från mottagning till motorlogik: %lld us\n", absolute_time_diff_us(start, stop));
+//absolute_time_t stop = get_absolute_time();
+//printf("⚡️ Tid från mottagning till motorlogik: %lld us\n", absolute_time_diff_us(start, stop));
 
 pbuf_free(p);
 }
 
 
-static void send_message(const char* msg) {
+void send_message(const char* msg) {
     if (client_pcb && msg) {
         struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, strlen(msg), PBUF_RAM);
         if (!p) {
