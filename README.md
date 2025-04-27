@@ -12,9 +12,13 @@ Tried using internal pullup for Hall but hysteris(dont fluctuate when magnet clo
 Used 330ohm instead, info taken from datasheet for similar sensor. output should not be above 25mA e.g.: VS = 12 V; IQ = 12 V/1200 Ω = 10 mA
 but we have 3.3V so 3.3/330 = 10 mA. ALso added buttons but will remove when interface is implemented
 
+### Decide interface, bluetooth, tcp client or something else.
+Using UDP for faster respons of motor controll, tried TCP, but was to slow. sending rpm to server is not tested.
+Motor is currently controlled on a separate core. Pico has 2 cores.
+
 ## Next
 calculate max rotations.
-Decide interface, bluetooth, tcp client or something else.
+
 Sensors is wokring so create a simple circuitboard that fits inside the trainer.
 ## TODO
 - Connect sensors and code. - done
