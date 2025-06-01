@@ -35,7 +35,7 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(steppermotor steppermotor.c tcp_client2.c)
+add_executable(steppermotor steppermotor.c udp_client.c)
 
 pico_set_program_name(steppermotor "steppermotor")
 pico_set_program_version(steppermotor "0.1")

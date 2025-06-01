@@ -14,52 +14,31 @@ static ip_addr_t remote_addr;
 static u16_t remote_port;
 int fram = 0, bak = 0;
 
+#define MAX_STEPS 864
+
+volatile float target_step_float = 0.0f;
+
 static void udp_recv_callback(void *arg, struct udp_pcb *pcb, struct pbuf *p,
     const ip_addr_t *addr, u16_t port) {
-if (!p) return;
+    if (!p) return;
 
-//absolute_time_t start = get_absolute_time();
+    char buffer[64] = {0};
+    memcpy(buffer, p->payload, p->len < 63 ? p->len : 63);
 
-char buffer[64] = {0};
-memcpy(buffer, p->payload, p->len < 63 ? p->len : 63);
-//printf("Mottaget: %s\n", buffer);
+    int percent = 0;
+    if (sscanf(buffer, "percent=%d", &percent) == 1) {
+        if (percent < 0) percent = 0;
+        if (percent > 100) percent = 100;
+        
+        static int last_percent = -1;
+        if (percent != last_percent) {
+            last_percent = percent;
+            resistance = percent;
+            printf("Styrsignal: %d%%\n", percent);  }            
+    }
 
-
-
-// Parsar state
-sscanf(buffer, "fram=%d;bak=%d", &fram, &bak);
-
-// Uppdatera globalt tillstånd
-motor_fram = (fram == 1);
-motor_bak = (bak == 1);
-/*
-// Hantera motorlogik
-if (fram == 1 && bak == 0) {
-printf("🔼 motor fram\n");
-step_motor(true);
-// gpio_put(MOTOR_PIN_FWD, true);
-// gpio_put(MOTOR_PIN_BAK, false);
-} else if (fram == 0 && bak == 1) {
-printf("🔽 motor bak\n");
-step_motor(false);
-// gpio_put(MOTOR_PIN_FWD, false);
-// gpio_put(MOTOR_PIN_BAK, true);
-} else if (fram == 0 && bak == 0) {
-printf("⛔️ motor stopp\n");
-// gpio_put(MOTOR_PIN_FWD, false);
-// gpio_put(MOTOR_PIN_BAK, false);
-} else if (fram == 1 && bak == 1) {
-printf("⚠️ Båda knappar nedtryckta – stopp för säkerhet\n");
-// gpio_put(MOTOR_PIN_FWD, false);
-// gpio_put(MOTOR_PIN_BAK, false);
+    pbuf_free(p);
 }
-*/
-//absolute_time_t stop = get_absolute_time();
-//printf("⚡️ Tid från mottagning till motorlogik: %lld us\n", absolute_time_diff_us(start, stop));
-
-pbuf_free(p);
-}
-
 
 void send_message(const char* msg) {
     if (client_pcb && msg) {
